@@ -1,0 +1,16 @@
+[package]
+name = "rust-cli"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+config-loader-trait = { path = "../config-loader-trait" }
+load-config-derive = { path = "../load-config-derive" }
+
+clap = { version = "4.4.7", features = ["derive"] }
+serde = { version = "1.0.190", features = ["derive"] }
+serde_json = "1.0.108"
+serde_yaml = "0.9.27"
+eyre = "0.6.8"
