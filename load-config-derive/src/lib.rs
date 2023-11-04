@@ -39,18 +39,42 @@ fn impl_config_loader(ast: &DeriveInput) -> proc_macro2::TokenStream {
         }
     });
 
+    // Generate the default_values method
+    let default_values_method = quote! {
+        fn default_values() -> Result<Self, Box<dyn std::error::Error>> {
+            Self::try_parse_from(&[""]).map_err(Into::into)
+        }
+    };
+
+    // Generate the config_values method
+    let config_values_method = quote! {
+        fn config_values(config_path: &str) -> Result<Self, Box<dyn std::error::Error>> {
+            let cfg_contents = std::fs::read_to_string(config_path)?;
+            let cfg: Self = serde_yaml::from_str(&cfg_contents)?;
+            Ok(cfg)
+        }
+    };
+
+    // Generate the load_config method
+    let load_config_method = quote! {
+        fn load_config() -> Result<Self, Box<dyn std::error::Error>> {
+            let opts = #struct_name::parse(); // Assumes the struct implements `clap::Parser`
+
+            let config_contents = std::fs::read_to_string(&opts.config)?;
+            let config: std::collections::HashMap<String, String> = serde_yaml::from_str(&config_contents)?;
+
+            Ok(Self {
+                #(#assignments,)*
+            })
+        }
+    };
+
+    // Combine everything into the final impl block
     quote! {
         impl ConfigLoader for #struct_name {
-            fn load_config() -> Result<Self, Box<dyn std::error::Error>> {
-                let opts = #struct_name::parse(); // Assumes the struct implements `clap::Parser`
-
-                let config_contents = std::fs::read_to_string(&opts.config)?;
-                let config: std::collections::HashMap<String, String> = serde_yaml::from_str(&config_contents)?;
-
-                Ok(Self {
-                    #(#assignments,)*
-                })
-            }
+            #default_values_method
+            #config_values_method
+            #load_config_method
         }
     }
 }

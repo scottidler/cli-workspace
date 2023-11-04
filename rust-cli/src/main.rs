@@ -4,8 +4,8 @@
 )]
 
 use clap::Parser;
-use load_config_derive::LoadConfig;
 use config_loader_trait::ConfigLoader;
+use load_config_derive::LoadConfig;
 use serde::{Deserialize, Serialize};
 
 #[derive(Parser, Deserialize, Serialize, Debug, LoadConfig)]
@@ -23,10 +23,12 @@ struct Opts {
     age: u8,
 }
 
-
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let opts = Opts::load_config()?;
-    println!("Current configuration: {:?}", opts);
+    //let opts = Opts::load_config()?;
+    //println!("Current configuration: {:?}", opts);
+    let defs = Opts::default_values()?;
+    let cfgs = Opts::config_values("config.yml")?;
+    println!("defs: {:?}", defs);
 
     // Your application logic goes here
 
