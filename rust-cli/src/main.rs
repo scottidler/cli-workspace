@@ -19,18 +19,12 @@ struct Opts {
     #[clap(short, long, default_value = "Doe")]
     last_name: String,
 
-    #[clap(short, long, default_value_t = 42)]
+    #[clap(short, long, default_value = "42")]
     age: u8,
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    //let opts = Opts::load_config()?;
-    //println!("Current configuration: {:?}", opts);
-    let defs = Opts::default_values()?;
-    let cfgs = Opts::config_values("config.yml")?;
-    println!("defs: {:?}", defs);
-
-    // Your application logic goes here
-
+    let opts = Opts::load_config()?;
+    println!("opts={:?}", opts);
     Ok(())
 }

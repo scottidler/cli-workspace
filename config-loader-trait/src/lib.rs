@@ -2,8 +2,6 @@
 
 /// A trait for loading configuration into a struct.
 pub trait ConfigLoader: Sized {
-    fn default_values() -> Result<Self, Box<dyn std::error::Error>>;
-    fn config_values(config_path: &str) -> Result<Self, Box<dyn std::error::Error>>;
     /// Load the configuration for the type implementing this trait.
     ///
     /// Returns the loaded configuration as an instance of the implementing type
