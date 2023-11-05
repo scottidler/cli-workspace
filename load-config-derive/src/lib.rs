@@ -85,6 +85,7 @@ fn impl_config_loader(ast: &DeriveInput) -> proc_macro2::TokenStream {
     // Update the config_loader_opts_impl to include the merge function
     let config_loader_opts_impl = quote! {
         #[derive(Debug, serde::Deserialize, clap::Parser, Default)]
+        #[serde(rename_all = "kebab-case")]
         struct #config_loader_opts_ident {
             #(#config_loader_opts_fields)*
         }
@@ -123,7 +124,7 @@ fn impl_config_loader(ast: &DeriveInput) -> proc_macro2::TokenStream {
                 eprintln!("args={:?}", args);
 
                 let mut opts = #config_loader_opts_ident::parse_from(args.as_slice()); // removed ?
-                eprintln!("opts={:?}", opts);
+                eprintln!("1 opts={:?}", opts);
 
                 // Load the YAML configuration file if specified
                 let yml_opts = if let Some(ref config_path) = opts.config {
@@ -135,21 +136,21 @@ fn impl_config_loader(ast: &DeriveInput) -> proc_macro2::TokenStream {
                 eprintln!("yml_opts={:?}", yml_opts);
 
                 opts = #config_loader_opts_ident::merge(opts, yml_opts);
-                eprintln!("opts={:?}", opts);
+                eprintln!("2 opts={:?}", opts);
 
                 // Override with environment variables using envy
                 let env_opts = envy::from_env::<#config_loader_opts_ident>().unwrap_or_default();
                 eprintln!("env_opts={:?}", env_opts);
 
                 opts = #config_loader_opts_ident::merge(opts, env_opts);
-                eprintln!("opts={:?}", opts);
+                eprintln!("3 opts={:?}", opts);
 
                 // Reparse the CLI with all fields to allow for overrides
                 let cli_opts = #config_loader_opts_ident::parse_from(args.as_slice()); // removed ?
                 eprintln!("cli_opts={:?}", cli_opts);
 
                 opts = #config_loader_opts_ident::merge(opts, cli_opts);
-                eprintln!("opts={:?}", opts);
+                eprintln!("4 opts={:?}", opts);
 
                 // Convert to the user's struct
                 Ok(opts.into())
