@@ -25,6 +25,6 @@ struct Opts {
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let opts = Opts::load_config()?;
-    println!("opts={:?}", opts);
+    println!("opts={opts:?}");
     Ok(())
 }
