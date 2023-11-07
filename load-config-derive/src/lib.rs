@@ -179,10 +179,6 @@ fn impl_config_loader(ast: &DeriveInput) -> proc_macro2::TokenStream {
                 } else {
                     default_value_opts.clone()
                 };
-                let yml_opts = match std::fs::read_to_string(cli_opts.config.as_deref().unwrap_or_default()) {
-                    Ok(config_contents) => serde_yaml::from_str(&config_contents)?,
-                    Err(_) => default_value_opts.clone(),
-                };
                 let precedence_opts = #config_loader_opts_ident::merge(&default_value_opts, &yml_opts);
                 let env_opts = #config_loader_opts_ident::from_env();
                 let precedence_opts = #config_loader_opts_ident::merge(&precedence_opts, &env_opts);
