@@ -4,7 +4,6 @@
 )]
 
 use clap::Parser;
-use config_loader_trait::ConfigLoader;
 use load_config_derive::LoadConfig;
 use serde::{Deserialize, Serialize};
 

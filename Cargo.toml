@@ -1,6 +1,5 @@
 [workspace]
 members = [
-    "config-loader-trait",
     "load-config-derive",
     "rust-cli",
 ]

@@ -61,6 +61,12 @@ fn impl_config_loader(ast: &DeriveInput) -> proc_macro2::TokenStream {
         }
     });
 
+    let config_loader_trait = quote! {
+        trait ConfigLoader: Sized {
+            fn load_config() -> Result<Self, Box<dyn std::error::Error>>;
+        }
+    };
+
     let merge_function = {
         let field_merges = fields.named.iter().map(|field| {
             let name = &field.ident;
@@ -227,6 +233,7 @@ fn impl_config_loader(ast: &DeriveInput) -> proc_macro2::TokenStream {
     };
 
     quote! {
+        #config_loader_trait
         #config_loader_opts_impl
         #from_impl
         #load_config_impl
