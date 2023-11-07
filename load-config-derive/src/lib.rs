@@ -165,7 +165,6 @@ fn impl_config_loader(ast: &DeriveInput) -> proc_macro2::TokenStream {
         let has_config_field = fields.named.iter().any(|field| {
             if let Some(ident) = &field.ident {
                 if ident == "config" {
-                    // Check if the type of the field is String
                     if let syn::Type::Path(type_path) = &field.ty {
                         return type_path.path.is_ident("String");
                     }
