@@ -131,7 +131,7 @@ fn impl_config_loader(ast: &DeriveInput) -> proc_macro2::TokenStream {
     };
 
     let config_loader_opts_impl = quote! {
-        #[derive(Debug, serde::Deserialize, clap::Parser, Default)]
+        #[derive(Clone, Debug, Default, serde::Deserialize, clap::Parser)]
         #[serde(rename_all = "kebab-case")]
         struct #config_loader_opts_ident {
             #(#config_loader_opts_fields)*
@@ -167,11 +167,21 @@ fn impl_config_loader(ast: &DeriveInput) -> proc_macro2::TokenStream {
                 let args: Vec<String> = std::env::args().collect();
                 let default_value_opts = #config_loader_opts_ident::parse_from([] as [&str; 0]);
                 let cli_opts = #config_loader_opts_ident::parse_from(args.as_slice());
-                let yml_opts = if let Some(ref config_path) = cli_opts.config {
-                    let config_contents = std::fs::read_to_string(config_path)?;
-                    serde_yaml::from_str(&config_contents)?
+                let yml_opts = if let Some(config_path) = cli_opts.config.as_deref() {
+                    if std::path::Path::new(config_path).exists() {
+                        match std::fs::read_to_string(config_path) {
+                            Ok(config_contents) => serde_yaml::from_str(&config_contents)?,
+                            Err(_) => default_value_opts.clone(),
+                        }
+                    } else {
+                        default_value_opts.clone()
+                    }
                 } else {
-                    #config_loader_opts_ident::default()
+                    default_value_opts.clone()
+                };
+                let yml_opts = match std::fs::read_to_string(cli_opts.config.as_deref().unwrap_or_default()) {
+                    Ok(config_contents) => serde_yaml::from_str(&config_contents)?,
+                    Err(_) => default_value_opts.clone(),
                 };
                 let precedence_opts = #config_loader_opts_ident::merge(&default_value_opts, &yml_opts);
                 let env_opts = #config_loader_opts_ident::from_env();
