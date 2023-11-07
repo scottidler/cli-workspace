@@ -130,6 +130,26 @@ fn impl_config_loader(ast: &DeriveInput) -> proc_macro2::TokenStream {
         }
     };
 
+    let load_yaml_function = quote! {
+        pub fn load_yaml(config_path: Option<&str>, default_value_opts: &Self) -> Self {
+            if let Some(config_path) = config_path {
+                if std::path::Path::new(config_path).exists() {
+                    match std::fs::read_to_string(config_path) {
+                        Ok(config_contents) => match serde_yaml::from_str(&config_contents) {
+                            Ok(yml_opts) => yml_opts,
+                            Err(_) => default_value_opts.clone(),
+                        },
+                        Err(_) => default_value_opts.clone(),
+                    }
+                } else {
+                    default_value_opts.clone()
+                }
+            } else {
+                default_value_opts.clone()
+            }
+        }
+    };
+
     let config_loader_opts_impl = quote! {
         #[derive(Clone, Debug, Default, serde::Deserialize, clap::Parser)]
         #[serde(rename_all = "kebab-case")]
@@ -141,6 +161,7 @@ fn impl_config_loader(ast: &DeriveInput) -> proc_macro2::TokenStream {
             #merge_function
             #resolve_function
             #from_env_function
+            #load_yaml_function
         }
     };
 
@@ -179,18 +200,7 @@ fn impl_config_loader(ast: &DeriveInput) -> proc_macro2::TokenStream {
                         let args: Vec<String> = std::env::args().collect();
                         let default_value_opts = #config_loader_opts_ident::parse_from([] as [&str; 0]);
                         let cli_opts = #config_loader_opts_ident::parse_from(args.as_slice());
-                        let yml_opts = if let Some(config_path) = cli_opts.config.as_deref() {
-                            if std::path::Path::new(config_path).exists() {
-                                match std::fs::read_to_string(config_path) {
-                                    Ok(config_contents) => serde_yaml::from_str(&config_contents)?,
-                                    Err(_) => default_value_opts.clone(),
-                                }
-                            } else {
-                                default_value_opts.clone()
-                            }
-                        } else {
-                            default_value_opts.clone()
-                        };
+                        let yml_opts = #config_loader_opts_ident::load_yaml(cli_opts.config.as_deref(), &default_value_opts);
                         let precedence_opts = #config_loader_opts_ident::merge(&default_value_opts, &yml_opts);
                         let env_opts = #config_loader_opts_ident::from_env();
                         let precedence_opts = #config_loader_opts_ident::merge(&precedence_opts, &env_opts);
