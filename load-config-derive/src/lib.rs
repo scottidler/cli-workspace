@@ -161,29 +161,57 @@ fn impl_config_loader(ast: &DeriveInput) -> proc_macro2::TokenStream {
         }
     };
 
-    let load_config_impl = quote! {
-        impl ConfigLoader for #struct_name {
-            fn load_config() -> Result<Self, Box<dyn std::error::Error>> {
-                let args: Vec<String> = std::env::args().collect();
-                let default_value_opts = #config_loader_opts_ident::parse_from([] as [&str; 0]);
-                let cli_opts = #config_loader_opts_ident::parse_from(args.as_slice());
-                let yml_opts = if let Some(config_path) = cli_opts.config.as_deref() {
-                    if std::path::Path::new(config_path).exists() {
-                        match std::fs::read_to_string(config_path) {
-                            Ok(config_contents) => serde_yaml::from_str(&config_contents)?,
-                            Err(_) => default_value_opts.clone(),
-                        }
+    let load_config_impl = {
+        let has_config_field =
+            fields.named.iter().any(
+                |field| {
+                    if let Some(ident) = &field.ident {
+                        ident == "config"
                     } else {
-                        default_value_opts.clone()
+                        false
                     }
-                } else {
-                    default_value_opts.clone()
-                };
-                let precedence_opts = #config_loader_opts_ident::merge(&default_value_opts, &yml_opts);
-                let env_opts = #config_loader_opts_ident::from_env();
-                let precedence_opts = #config_loader_opts_ident::merge(&precedence_opts, &env_opts);
-                let final_opts = #config_loader_opts_ident::resolve(&cli_opts, &default_value_opts, &precedence_opts);
-                Ok(final_opts.into())
+                },
+            );
+        if has_config_field {
+            quote! {
+                impl ConfigLoader for #struct_name {
+                    fn load_config() -> Result<Self, Box<dyn std::error::Error>> {
+                        let args: Vec<String> = std::env::args().collect();
+                        let default_value_opts = #config_loader_opts_ident::parse_from([] as [&str; 0]);
+                        let cli_opts = #config_loader_opts_ident::parse_from(args.as_slice());
+                        let yml_opts = if let Some(config_path) = cli_opts.config.as_deref() {
+                            if std::path::Path::new(config_path).exists() {
+                                match std::fs::read_to_string(config_path) {
+                                    Ok(config_contents) => serde_yaml::from_str(&config_contents)?,
+                                    Err(_) => default_value_opts.clone(),
+                                }
+                            } else {
+                                default_value_opts.clone()
+                            }
+                        } else {
+                            default_value_opts.clone()
+                        };
+                        let precedence_opts = #config_loader_opts_ident::merge(&default_value_opts, &yml_opts);
+                        let env_opts = #config_loader_opts_ident::from_env();
+                        let precedence_opts = #config_loader_opts_ident::merge(&precedence_opts, &env_opts);
+                        let final_opts = #config_loader_opts_ident::resolve(&cli_opts, &default_value_opts, &precedence_opts);
+                        Ok(final_opts.into())
+                    }
+                }
+            }
+        } else {
+            quote! {
+                impl ConfigLoader for #struct_name {
+                    fn load_config() -> Result<Self, Box<dyn std::error::Error>> {
+                        let args: Vec<String> = std::env::args().collect();
+                        let default_value_opts = #config_loader_opts_ident::parse_from([] as [&str; 0]);
+                        let cli_opts = #config_loader_opts_ident::parse_from(args.as_slice());
+                        let env_opts = #config_loader_opts_ident::from_env();
+                        let precedence_opts = #config_loader_opts_ident::merge(&default_value_opts, &env_opts);
+                        let final_opts = #config_loader_opts_ident::resolve(&cli_opts, &default_value_opts, &precedence_opts);
+                        Ok(final_opts.into())
+                    }
+                }
             }
         }
     };
