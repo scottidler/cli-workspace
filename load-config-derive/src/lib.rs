@@ -82,6 +82,60 @@ fn impl_config_loader(ast: &DeriveInput) -> proc_macro2::TokenStream {
         }
     };
 
+    // Generate the resolve function for ConfigLoaderOpts
+    let resolve_function = {
+        let field_resolutions = fields.named.iter().map(|field| {
+            let name = &field.ident;
+            quote! {
+                #name: if cli_opts.#name != default_value_opts.#name {
+                    cli_opts.#name
+                } else {
+                    precedence_opts.#name
+                },
+            }
+        });
+
+        quote! {
+            pub fn resolve(cli_opts: Self, default_value_opts: Self, precedence_opts: Self) -> Self {
+                Self {
+                    #(#field_resolutions)*
+                }
+            }
+        }
+    };
+
+    // Generate the from_env function for ConfigLoaderOpts
+    let from_env_function = {
+        let env_assignments = fields.named.iter().map(|field| {
+            let ident = &field.ident;
+            let ident_str = ident.as_ref().unwrap().to_string().to_uppercase();
+            let ty = &field.ty;
+            let option_wrapped = is_option_type(ty);
+
+            let env_var_assignment = if option_wrapped {
+                quote! {
+                    std::env::var(#ident_str).ok()
+                }
+            } else {
+                quote! {
+                    std::env::var(#ident_str).ok().and_then(|s| s.parse().ok())
+                }
+            };
+
+            quote! {
+                #ident: #env_var_assignment
+            }
+        });
+
+        quote! {
+            pub fn from_env() -> Self {
+                Self {
+                    #(#env_assignments),*
+                }
+            }
+        }
+    };
+
     // Update the config_loader_opts_impl to include the merge function
     let config_loader_opts_impl = quote! {
         #[derive(Debug, serde::Deserialize, clap::Parser, Default)]
@@ -92,6 +146,8 @@ fn impl_config_loader(ast: &DeriveInput) -> proc_macro2::TokenStream {
 
         impl #config_loader_opts_ident {
             #merge_function
+            #resolve_function
+            #from_env_function
         }
     };
 
@@ -123,37 +179,33 @@ fn impl_config_loader(ast: &DeriveInput) -> proc_macro2::TokenStream {
                 let args: Vec<String> = std::env::args().collect();
                 eprintln!("args={:?}", args);
 
-                let mut opts = #config_loader_opts_ident::parse_from(args.as_slice()); // removed ?
-                eprintln!("1 opts={:?}", opts);
+                // get a struct with the default_value of every field by parsing with no args
+                let default_value_opts = #config_loader_opts_ident::parse_from([] as [&str; 0]);
+
+                let cli_opts = #config_loader_opts_ident::parse_from(args.as_slice());
 
                 // Load the YAML configuration file if specified
-                let yml_opts = if let Some(ref config_path) = opts.config {
+                let yml_opts = if let Some(ref config_path) = cli_opts.config {
                     let config_contents = std::fs::read_to_string(config_path)?;
                     serde_yaml::from_str(&config_contents)?
                 } else {
                     #config_loader_opts_ident::default()
                 };
-                eprintln!("yml_opts={:?}", yml_opts);
 
-                opts = #config_loader_opts_ident::merge(opts, yml_opts);
-                eprintln!("2 opts={:?}", opts);
+                let mut precedence_opts = #config_loader_opts_ident::merge(default_value_opts, yml_opts);
 
-                // Override with environment variables using envy
-                let env_opts = envy::from_env::<#config_loader_opts_ident>().unwrap_or_default();
-                eprintln!("env_opts={:?}", env_opts);
+                let env_opts = #config_loader_opts_ident::from_env();
 
-                opts = #config_loader_opts_ident::merge(opts, env_opts);
-                eprintln!("3 opts={:?}", opts);
+                precedence_opts = #config_loader_opts_ident::merge(precedence_opts, env_opts);
 
-                // Reparse the CLI with all fields to allow for overrides
-                let cli_opts = #config_loader_opts_ident::parse_from(args.as_slice()); // removed ?
-                eprintln!("cli_opts={:?}", cli_opts);
+                // dumb as shit; get the default_value_opts again to avoid a move FIXME: terrible
+                let default_value_opts = #config_loader_opts_ident::parse_from([] as [&str; 0]);
 
-                opts = #config_loader_opts_ident::merge(opts, cli_opts);
-                eprintln!("4 opts={:?}", opts);
+                // Override with CLI options if they differ from the default values
+                let final_opts = #config_loader_opts_ident::resolve(cli_opts, default_value_opts, precedence_opts);
 
                 // Convert to the user's struct
-                Ok(opts.into())
+                Ok(final_opts.into())
             }
         }
     };
