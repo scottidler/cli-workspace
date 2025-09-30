@@ -8,6 +8,7 @@ use load_config_derive::LoadConfig;
 use serde::{Deserialize, Serialize};
 
 #[derive(Parser, Deserialize, Serialize, Debug, LoadConfig)]
+#[command(name = "rust-cli", version = env!("GIT_DESCRIBE"), about = "Example CLI with config loading")]
 struct Opts {
     #[clap(short, long, default_value = "config.yml")]
     config: String,
